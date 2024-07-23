@@ -16,7 +16,6 @@
 import * as iconsManager from "./main.icons.js";
 import * as indexesManager from "./main.indexes.js";
 import {createLoadingItem} from "./main.utils.js";
-import {handleRecursive} from "./main.parser.js";
 import {globalUpdateActiveFile} from "./main.sidebar.js";
 import * as tooltip from "./main.tooltip.js";
 import * as searchEngine from "./main.search_engine.js";
@@ -173,8 +172,8 @@ function handleSearch() {
                 } else {
                     codeRefResultsLimited.append(ref);
                 }
-            } else if (result.element instanceof indexesManager.ElementIndex) {
-                const ref = createReference(null, null, result.file, docsRefResultsLimited.childNodes.length >= 3 ? undefined : result.element.chunk, "");
+            } else {
+                const ref = createReference(null, null, result.file, docsRefResultsLimited.childNodes.length >= 3 ? undefined : result.element, "");
                 if (docsRefResultsLimited.childNodes.length >= 3) {
                     docsRefResults.push(ref);
                 } else {
@@ -443,7 +442,7 @@ function scheduleSearch(onSearchReady) {
     currentSearchTimeout = setTimeout(() => onSearchReady(searchTextElement.value.trim()), 150);
 }
 
-function createReference(type, name, pathName, chunks) {
+function createReference(type, name, pathName, preview) {
     const codeDetailsName = document.createElement('div');
     codeDetailsName.classList.add('cd-name');
     const codeDetailsPath = document.createElement('div');
@@ -486,26 +485,18 @@ function createReference(type, name, pathName, chunks) {
         codeDetailsName.prepend(codeDetailsType);
     }
 
-    if (chunks != null) {
-        const docsRefPage = document.createElement('div');
-        docsRefPage.classList.add('page');
+    if (preview != null) {
         const docsRefPreview = document.createElement('div');
         docsRefPreview.classList.add('content', 'docs-ref-preview');
-        docsRefPreview.appendChild(docsRefPage);
+
         const fakePageContainer = document.createElement('div');
         fakePageContainer.classList.add('page-container', 'is-preview', 'is-loading');
         fakePageContainer.appendChild(docsRefPreview);
         row.appendChild(fakePageContainer);
         row.classList.add('has-docs-preview');
 
-        searchDocsRefPreviewTimeouts.push(setTimeout(() => {
-            const fakeDom = document.createElement('div');
-            fakeDom.append(...chunks);
-            try {
-                handleRecursive(fakeDom, docsRefPage);
-            } catch (e) {
-                console.log(e);
-            }
+        searchDocsRefPreviewTimeouts.push(setTimeout( () => {
+            searchEngine.generatePreview(docsRefPreview, preview);
             fakePageContainer.classList.remove('is-loading');
         }, 500));
     }

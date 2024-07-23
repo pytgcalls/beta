@@ -14,6 +14,7 @@
  */
 import * as indexesManager from "./main.indexes.js";
 import {initFull} from "./main.indexes.js";
+import {handleRecursive} from "./main.parser.js";
 
 const MAX_RESULTS = 10;
 export let isSearching = false;
@@ -54,7 +55,7 @@ export async function search(query) {
                     results.push(result);
                 }
             } else {
-                if (results.filter((r) => r.data.element instanceof indexesManager.ElementIndex).length < MAX_RESULTS) {
+                if (results.filter((r) => r.data.element instanceof indexesManager.PageContent).length < MAX_RESULTS) {
                     results.push(result);
                 }
             }
@@ -70,19 +71,30 @@ export async function search(query) {
                 try {
                     return {
                         file: result.file,
-                        element: indexesManager.ElementIndex.cloneFrom(
-                            applyHighlight(result.data.element.mainElement, result.data.offset, result.data.sentence.length),
-                            result.data.element,
-                        ),
-                    };
-                } catch (ignored) {
-                    return null;
-                }
+                        element: applyHighlight(result.data.element.content, result.data.offset, result.data.sentence.length),
+                    }
+                } catch (ignored) {}
             }
         })
         .filter((result) => result);
     isSearching = false;
     return results;
+}
+
+export function generatePreview(previewContainer, highlightedPage) {
+    const tempPreview = document.createElement('div');
+    tempPreview.classList.add('page');
+    previewContainer.appendChild(tempPreview);
+
+    handleRecursive(highlightedPage, tempPreview);
+
+    const selectedCoords = tempPreview.querySelector('.ids').getBoundingClientRect();
+    const tempPreviewCoords = previewContainer.getBoundingClientRect();
+
+    const containerHeight = previewContainer.clientHeight;
+    const y = selectedCoords.top - tempPreviewCoords.top;
+    const yCenter = (y - containerHeight / 2 + selectedCoords.height / 2);
+    tempPreview.style.transform = `translateY(-${yCenter}px) ` + tempPreview.computedStyleMap().get('transform').toString();
 }
 
 function applyHighlight(htmlElement, offset, length) {
@@ -141,9 +153,9 @@ function matchIndex(file, query) {
 
 function matchPage(file, query) {
     const results = indexesManager.getIndexedValue(file)
-        .filter((indexedValue) => indexedValue instanceof indexesManager.ElementIndex)
+        .filter((indexedValue) => indexedValue instanceof indexesManager.PageContent)
         .map((indexedValue) => {
-            let match = approxMatch(query, indexedValue.mainElement.textContent);
+            let match = approxMatch(query, indexedValue.content.textContent);
             if (match !== null) {
                 return {
                     accuracy: match.accuracy,

@@ -95,36 +95,16 @@ function parseFile(filePath, fileContent) {
     const domHelper = new DOMParser();
     const dom = domHelper.parseFromString(fileContent, 'application/xml');
     const classyElements = dom.querySelectorAll(composeOptimizedPageQuery());
-
     for (const element of classyElements) {
+      tryToReduceTags(element);
       if (element.hasAttribute('src')) {
         const elementType = element.getAttribute('src');
         if (AVAILABLE_TYPES.includes(elementType)) {
-          tryToReduceTags(element);
           fileIndexes.push(new FileIndex(elementType, element.textContent, filePath));
         }
       }
-
-      if (SUPPORTED_ELEMENTS.includes(element.tagName.toUpperCase())) {
-        tryToReduceTags(element);
-
-        const elementIndex = new ElementIndex(element);
-
-        if (element.previousElementSibling instanceof Element && SUPPORTED_ELEMENTS.includes(element.previousElementSibling.tagName.toUpperCase())) {
-          const preChunk = element.previousElementSibling;
-          tryToReduceTags(preChunk);
-          elementIndex.prependToChunk(preChunk);
-        }
-
-        if (element.nextElementSibling instanceof Element && SUPPORTED_ELEMENTS.includes(element.nextElementSibling.tagName.toUpperCase())) {
-          const postChunk = element.nextElementSibling;
-          tryToReduceTags(postChunk);
-          elementIndex.addToChunk(postChunk);
-        }
-
-        fileIndexes.push(elementIndex);
-      }
     }
+    fileIndexes.push(new PageContent(dom.documentElement));
   } catch (e) {
     console.error(e);
   }
@@ -136,51 +116,15 @@ export function getAllIndexedFiles() {
   return Object.keys(indexes);
 }
 
-export class ElementIndex {
-  #chunk;
-  #main;
+export class PageContent {
+  #content;
 
-  constructor(element) {
-    this.#chunk = [element];
-    this.#main = element;
+  constructor(content) {
+      this.#content = content;
   }
 
-  static cloneFrom(mainElement, target) {
-    if (!target instanceof ElementIndex) {
-      throw new Error('ElementIndex.cloneFrom: elementToClone is not an instance of ElementIndex');
-    }
-    const newElement = new ElementIndex(mainElement);
-
-    let foundMainElement = false;
-    for (let child of target.chunk) {
-      if (child === target.mainElement) {
-        foundMainElement = true;
-      } else if (foundMainElement) {
-        newElement.addToChunk(child.cloneNode(true));
-      } else {
-        newElement.prependToChunk(child.cloneNode(true));
-      }
-    }
-    return newElement;
-  }
-
-  get mainElement() {
-    return this.#main;
-  }
-
-  get chunk() {
-    return this.#chunk;
-  }
-
-  addToChunk(element) {
-    this.#chunk.push(element);
-  }
-
-  prependToChunk(element) {
-    this.#chunk = [
-        element,
-        ...this.#chunk
-    ];
+  get content() {
+      return this.#content;
   }
 }
 
